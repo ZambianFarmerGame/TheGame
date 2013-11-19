@@ -1,2 +1,2 @@
-TheGame
+Zambian Farmer Game
 =======
