@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Zambian Farmer Game</title>
+<style>
+   /* Game Status Starts */
+   #CurrentLocation {
+        font-size:14pt;
+        font-family:Arial;
+        color:orange;
+    
+   }
+    #Money, .Money {
+        font-size:14pt;
+        font-family:Arial;
+        color:blue;
+        
+    }
+    #Status {
+        font-size:14pt;
+        font-family:Arial;
+        color:green;
+        
+    }
+
+    .StatusLabels {
+        font-size:14pt;
+        font-family:Arial;
+        font-weight:bold;
+        color:black;
+        text-align:center;
+    }
+    .BoxValue {
+        background-color:green;
+        color:white;
+        border:2px solid black;
+        font-size:14pt;
+        font-family:Arial;
+        font-weight:bold;
+    }
+
+    /* Menu Stuff */
+    #MenuID {}
+    #GameID {
+    }
+    #FrameID {
+        position:relative;top:0;left:0;
+    }
+    .MenuCL {}
+    .BackCL {
+        position:absolute;top:0;left:0;
+        width:600px;height:450px;
+    }
+    .px {
+        font-size:0;
+        position:absolute;
+    }
+    
+    .MainMenu, #INVIN,#HOMEIN,#FARMIN,#MARKETIN,#GOVIN,
+     #FIELDS,#ANIM,#GRAN {
+        cursor:default;
+        font-size:14pt;
+        font-family:Arial;
+        text-align:center;
+    }
+    #FarmHTML {
+        display:none;
+    }
+    #FARMFRAME {
+        z-index:1;
+        margin-top:-8px;
+    }
+    #FARMFRAMEIN {
+        font-size:12pt;
+        font-family:Arial;
+    }
+</style>
+<script>
+
+/////////////////////////////////////////////////////
+// Convenience Functions
+/////////////////////////////////////////////////////
+
+// Return the HTML DOM object for id
+function Gid(id) {
+    return document.getElementById(id);
+}
+
+// Makes putting quoted strings in strings prettier
+function Q(s) {
+    return '"' + s + '"';
+}
+
+// Control the visibility of an element by id
+function Show(id, vis) {
+    Gid(id).style.visibility = vis ? "" : "hidden"; 
+}
+
+// Create a DOM element
+function Ce (tagName) {
+    return document.createElement(tagName);
+}
+
+// Append new child element e to object p
+function Ac (p, e) {
+    return p.appendChild(e);
+}
+
+/////////////////////////////////////////////////////
+// Game Constants
+/////////////////////////////////////////////////////
+// o - Outside background
+// i - Inside background
+var BoxColorA = [
+    "#2b3238", // 0
+    "#00070d", // 1
+    "#d4d8db", // 2
+    "#b6babd", // 3
+    "#4d5256", // 4
+    "#000105", // 5
+    "#14181b", // 6
+    "#0f1418", // 7
+    "#090e12", // 8
+];
+
+var BoxCornerA = [
+    "ooooo2","ooo345","oo3655","oo754i","o454ii","o513ii"
+];
+
+var BoxSideA = ["356iii"];
+var CornersA = [];
+var SidesA = [];
+
+
+function RotateRight (b, a) {
+    var i, j, r = [];
+    
+    b [b.length] = a;
+    if (b.length == 4)
+        return;
+    
+    for (i = 0; i < a.length; i++)
+        for (j = 0; j < a[i].length; j++)
+            r [j] = r [j] == undefined ? a [i][j] : a [i][j] + r [j]; 
+    RotateRight(b, r);
+}
+
+RotateRight (CornersA, BoxCornerA);
+RotateRight (SidesA, BoxSideA);
+
+
+function div(id, cl, abs, t, l, h, w, color) {
+    return "<div" + 
+     (cl ? " class=" + Q(cl) : "") + 
+     (id ? " id=" + Q(id) : "") + 
+     " style='top:"+ t + 
+     "px;left:" + l + 
+     "px;height:" + h + 
+     "px;width:" + w + 
+     "px;position:" + (abs ? "absolute" : "relative") +
+     (color ? ";background-color:" + color : "") +
+     ";'>";
+}
+
+
+
+function GenRoundedBoxHTML (h, w, id) {
+    function GenTds(t, h, w) {
+        var i, j, c; 
+        top1 = top;
+        for (i = 0; i < t.length; i++) {
+            left1 = left;
+            for (j = 0; j < t[i].length; j++) {
+                if ((c = t[i][j]) == "i")
+                    s += div(0, "i", 1, top1, left1, h, w) + "</div>";
+                else if ("0" <= c && c <= "9")
+                    s += div(0, 0, 1, top1, left1, h, w, BoxColorA[c]) + "</div>";
+                left1 += w;
+            }
+            top1 += h;
+        }
+        left = left1;
+    }
+    
+    var left, top, left1, top1, s = ""; 
+    top = left = 0; 
+       GenTds (CornersA[0], 1, 1); GenTds(SidesA[1], 1, w); GenTds (CornersA[1], 1, 1); 
+    top = top1; left = 0; 
+       GenTds (SidesA[0], h, 1); s += div(id+"IN", "i", 1, top-2, left1, h+2, w) + "</div>"; 
+          left += w; GenTds(SidesA[2], h, 1); 
+    top = top1; left = 0; 
+       GenTds (CornersA[3], 1, 1); GenTds(SidesA[3], 1, w); top = GenTds(CornersA[2], 1, 1); 
+    return div(id, 0, 0, 0, 0, top1, left1) + s + "</div>";
+}
+
+///////////////////////////////////////////////////////////
+// Game Utilities
+///////////////////////////////////////////////////////////
+
+function OnSetPadColor (id, color) {
+    var i, a = Gid(id).getElementsByTagName("div");
+    for (i = 0; i < a.length; i++)
+        if (a [i].className == "i")
+            a [i].style.backgroundColor = color;
+}
+
+
+function DisplayObj(o) {
+    var i, p;
+    for (i in o)
+        if ((p = Gid(i)) != null)
+            p.innerHTML = o [i];
+}
+
+
+function Click(Ma, Mo) {
+    if (Ma.CurClick) {
+        OnSetPadColor (Ma.CurClick, "lightblue");
+        Gid(Ma.CurClick).style.zIndex = 0;
+    }
+    var o;
+    OnSetPadColor (Ma.CurClick = Mo.id, "orange");
+    Gid(Ma.CurClick).style.zIndex = 3;
+    if ((o = Gid(Ma.statusID)) != null)
+        o.innerHTML = Mo.desc;
+    DisplayObj(GameStatus);
+}
+
+
+///////////////////////////////////////////////////////////
+// Game Status
+///////////////////////////////////////////////////////////
+
+var GameStatusInitial = {
+    Nutrition:100, 
+    Energy:100,
+    Money:25000,
+    Status:"Healthy",
+    GameDate:"March 8, 2014",
+    GameDay:8,
+    GameTime:"14:00",
+    Weather:"<img src='imgs/SunCloud.gif'/>"
+};
+
+
+var GameStatus;
+
+
+
+///////////////////////////////////////////////////////////
+// Farm Menu Events
+///////////////////////////////////////////////////////////
+
+
+
+function onFields () {
+}
+
+function onAnimals() {
+}
+
+function onGranary () {
+}
+
+var FarmItemsA = [
+    {desc:"Fields",id:"FIELDS",on:onFields},
+    {desc:"Animals",id:"ANIM",on:onAnimals},
+    {desc:"Granary",id:"GRAN",on:onGranary},
+];
+FarmItemsA.id = 'FarmMenuID'
+FarmItemsA.sep = "</td><td>";
+FarmItemsA.CurClick = "FIELDS";
+
+///////////////////////////////////////////////////////////
+// Main Menu Events
+///////////////////////////////////////////////////////////
+
+function onInventory () {
+    Gid("FrameID").innerHTML = "<big>Inventory</big>";
+}
+
+function onHome() {
+    Gid("FrameID").innerHTML = "<h3>Home</h3>";
+}
+
+function onFarm () {
+    var o;
+    Gid("FrameID").innerHTML = "<div id='FarmMenuID'></div>" +
+      GenRoundedBoxHTML (460, 724, "FARMFRAME");
+    OnSetPadColor ("FARMFRAME", "orange");
+    MenuHTML(FarmItemsA);
+    Gid(FarmItemsA.CurClick + "IN").click();
+}
+
+function onMarket () {
+    Gid("FrameID").innerHTML = "<h3>Market</h3>";
+}
+
+function onGovernment () {
+    Gid("FrameID").innerHTML = "<h3>Government</h3>";
+}
+
+
+
+// Main Menu item array
+var MainItemsA = [
+    {desc:"Inventory",id:"INV", on:onInventory},
+    {desc:"Home",id:"HOME", on:onHome},
+    {desc:"Farm",id:"FARM", on:onFarm},
+    {desc:"Market",id:"MARKET", on:onMarket},
+    {desc:"Government",id:"GOV", on:onGovernment}
+];
+MainItemsA.id = "MenuID";  // Page id to attach menu 
+MainItemsA.sep = "<br>";   // Separator between each menu item
+MainItemsA.statusID = "CurrentLocation";
+
+
+
+// Write Menu HTML to the document.
+function MenuHTML (Ma) {
+    var o, i, a = [];
+    // Scan through Ma array, creating button HTML.
+    for (i = 0; i < Ma.length; i++)
+    // Write the HTML to the page
+        a [i] = GenRoundedBoxHTML(26,142,Ma[i].id);
+    var b = "<table border='0' cellspacing='0' cellpadding='0'><tr><td>";
+    Gid(Ma.id).innerHTML = b + a.join(Ma.sep) + "</td></tr></table>";
+    // And apply onclick handlers
+    for (i = 0; i < Ma.length; i++) {
+        (o = Gid(Ma[i].id + "IN")).onclick = 
+          function(Ma, Mo) {return function () {Click(Ma, Mo); Mo.on(Mo); }}(Ma, Ma[i]);
+        Gid(Ma[i].id + "IN").innerHTML = Ma[i].desc; 
+        OnSetPadColor(Ma[i].id, "lightblue");
+    }
+}
+
+function OnLoad() {
+    MenuHTML(MainItemsA);
+    Gid("INVIN").click();
+    GameStatus = GameStatusInitial;
+    DisplayObj(GameStatus);
+}
+
+
+</script>
+</head>
+<body onload='OnLoad()'>
+<table border='0' cellspacing='0' width='940px' height='710px'>
+<tr>
+   <td width='184px' height='164px' style='font-family:Arial; font-size:24pt' align='center'>Zambian<br>Farmer</td>
+   <td width='2px' bgcolor='black'></td>
+   <!-- Game Status Starts -->
+   <td width='520px' align='center'>
+        <div style='border:2px solid red;width:500px;height:130px;padding:6px;margin-top:6px;'>
+       <table border='0' cellpadding='0' cellspacing='3' width='100%' height='100%'  class='StatusLabels' style=''>
+       <tr><td>Nutrition</td><td>Energy</td>
+          <td><nobr>Money:&nbsp;<span id='Money'></span><span class='Money'>&nbsp;Kwacha</span></nobr></td></tr>
+       <tr><td height='26px' class='BoxValue' id='Nutrition'>  </td><td class='BoxValue' id='Energy'></td><td>Current Location:</td></tr>
+       <tr><td colspan='2'>Status:&nbsp;<span id='Status'></span></td><td id='CurrentLocation'></td></tr>
+       </table>
+       </div>       
+  </td> 
+  <td width='200' align='center'>
+        <div style='border:2px solid red;width:180px;height:130px;padding:6px;margin-top:6px;'>
+       <table border='0' cellpadding='0' cellspacing='3' width='100%' height='100%'  class='StatusLabels' style=''>
+       <tr><td align='center' id='GameDate'></td></tr>
+       <tr><td align='center'>Day&nbsp;<span id='GameDay'></span>&nbsp;&nbsp;<span id='GameTime'></span></td></tr>
+       <tr><td align='center' id='Weather'></td></tr>
+       </table>
+       </div>
+  </td>
+   <!-- Game Status Ends -->
+</tr>
+<tr>
+   <td height='4' colspan='4' bgcolor='black'></td>
+</tr>
+<tr>
+    <td height='542px' valign='top'>
+    <p class='MainMenu'>Navigation</p>
+    <div align='center' id='MenuID' style='position:relative;top:0;left:0;'>
+    </div>
+    </td>
+    <td bgcolor='black'></td>
+    <td colspan='2' valign='top' align='center'>
+    <div id='FrameID' style='position:relative;top:0;left:0;'>
+    </div>
+    </td>
+</tr>
+</div>
+<div id='FarmHTML'>
+</div>
+</table>
+</body>
+</html>
