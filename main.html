@@ -2,7 +2,8 @@
 <html>
 <head>
 <title>Zambian Farmer Game</title>
-<style>
+<style id='STYLE'>
+
    /* Game Status Starts */
    #CurrentLocation {
         font-size:14pt;
@@ -23,12 +24,17 @@
         
     }
 
-    .StatusLabels {
+    .StatusLabels, .header, .FFSTATL, .FFSTATR {
         font-size:14pt;
         font-family:Arial;
         font-weight:bold;
         color:black;
+    }
+    .StatusLabels, .header {
         text-align:center;
+    }
+    .FFSTATL, .FFSTATR {
+        padding:5px;
     }
     .BoxValue {
         background-color:green;
@@ -56,17 +62,37 @@
         position:absolute;
     }
     
-    .MainMenu, #INVIN,#HOMEIN,#FARMIN,#MARKETIN,#GOVIN,
-     #FIELDS,#ANIM,#GRAN {
+    /* #FIELDS,#ANIM,#GRAN, #INVIN,#HOMEIN,#FARMIN,#MARKETIN,#GOVIN, */
+    .MainMenu, .FARM, .CROP, .FARMACT {
         cursor:default;
         font-size:14pt;
         font-family:Arial;
         text-align:center;
     }
+    .MainMenuIN {
+        vertical-align:middle;
+    }    
+    .FARM {
+        margin-top:3px;
+        margin-left:5px;
+        margin-right:5px;
+    }
+    .CROP {
+        margin-top:20px;
+        margin-left:9px;
+        margin-right:9px;
+    }
+    .FARMACT {
+        margin-top:20px;
+        margin-left:6px;
+        margin-right:6px;
+    }
+    
     #FarmHTML {
         display:none;
     }
     #FARMFRAME {
+        background-color:khaki;
         z-index:1;
         margin-top:-8px;
     }
@@ -74,6 +100,21 @@
         font-size:12pt;
         font-family:Arial;
     }
+    #FFIMG {
+        background-color:lightblue;
+        margin-top:8px;
+        border:2px solid black;
+    }
+    #FFSTAT {
+        margin-top:8px;
+        border:2px solid red;
+    }
+    #FFSEL,#FFACT {
+        margin-top:8px;
+        border:2px solid black;
+    }
+
+
 </style>
 <script>
 
@@ -106,31 +147,142 @@ function Ac (p, e) {
     return p.appendChild(e);
 }
 
+// Init an array with empty objects.
+function InitArrayOfObjs(n) {
+    var i, ra = [];
+    for (i = 0; i < n; i++)
+        ra [i] = {};
+    return ra;
+}
+
+/////////////////////////////////////////////////////
+// Panel Object
+/////////////////////////////////////////////////////
+
+function oTable000(s) {
+    if (s == undefined) s = "";
+    return "<table border='0' cellspacing='0' cellpadding='0'" + s + ">";
+}
+
+function PanelObj (AtO) {
+    var HTMLA = [];
+    var EventA = [];
+    var th = {
+        connect:function (P) {
+            HTMLA = P.HTMLA;
+            EventA = P.EventA;
+        },
+    
+        attach:function(id, eventName, eventFunction) {
+            EventA [EventA.length] = {
+               id:id, 
+               eventName:eventName, 
+               eventFunction:eventFunction
+            };
+        },
+        attachEvents:function () {
+            var i;
+            for (i = 0; i < EventA.length; i++)
+                Gid(EventA[i].id)[EventA[i].eventName] = EventA[i].eventFunction;
+        },
+        
+        put:function () {
+            Gid(AtO.id).innerHTML = HTMLA.join("");
+            th.attachEvents();
+        },
+        
+        makeId:function (D) {
+            if (AtO.id == undefined)
+                AtO.id = "AtO";
+            if (AtO.cl == undefined)
+                AtO.cl = AtO.id;
+            if (D.cl == undefined)
+                D.cl = AtO.cl;
+            if (D.id == undefined)
+                D.id = AtO.id + HTMLA.length;
+            if (D.field == undefined)
+                D.field = "F" + HTMLA.length;
+        },
+        on:function(D) {
+            if (D.on != undefined)
+                th.attach(D.id, "onclick", D.on);
+        },
+        initField:function(D) {
+            if (D.obj == undefined)
+                D.obj = AtO.obj; 
+            if (D.obj != undefined && D.field != undefined && D.obj[D.field] == undefined)
+                D.obj[D.field] = D.init;
+        },
+        getField:function(D) {
+            return D.obj == undefined || D.field == undefined || D.obj[D.field] == undefined
+                ? "" : D.obj[D.field];
+        },
+        getQ:function(D, v, attr) {
+            return v == undefined ? "" 
+               :  attr == undefined ? v : attr + Q(v);    
+        },
+        classId:function(D, side) {
+            return th.getQ(D, D.field + side, " id=")
+                 + th.getQ(D, D.cl + side, " class=");
+        },
+        header:function(D) {
+            var s = "<div style='width:100%;text-align:center;' class='header'>";
+            if (D.desc)
+                s += D.desc;
+            s += "</div>";
+            HTMLA [HTMLA.length] = s;
+        },
+        
+        display:function(D) {
+            var s = oTable000(" width='100%'");
+            th.makeId(D);
+            th.on(D);
+            th.initField(D);
+            s += "<tr><td width='50%' align='left' " + th.classId(D,"L") + ">";
+            if (D.desc != undefined)
+                s += D.desc;
+            s += "</td><td align='right'" + th.classId(D,"R") + ">" + th.getField(D);
+            if (D.unit != undefined)
+                s += "&nbsp;" + D.unit;
+            s += "</td></tr></table>";
+            HTMLA [HTMLA.length] = s;
+            
+        }
+    };
+    return th;
+}
+
+
 /////////////////////////////////////////////////////
 // Game Constants
 /////////////////////////////////////////////////////
-// o - Outside background
-// i - Inside background
-var BoxColorA = [
-    "#2b3238", // 0
-    "#00070d", // 1
-    "#d4d8db", // 2
-    "#b6babd", // 3
-    "#4d5256", // 4
-    "#000105", // 5
-    "#14181b", // 6
-    "#0f1418", // 7
-    "#090e12", // 8
-];
 
-var BoxCornerA = [
-    "ooooo2","ooo345","oo3655","oo754i","o454ii","o513ii"
-];
+var ButtonColors = {
+    inactive:{
+        unselected:ColObj("gray", "white"),
+        selected:ColObj("red", "white")
+    },active:{
+        unselected:ColObj("lightblue","black"),
+        selected:ColObj("orange","black")
+    }
+};
 
-var BoxSideA = ["356iii"];
-var CornersA = [];
-var SidesA = [];
+function ButtonState(o, id, NotSelected) {
+    var sel = NotSelected ? "unselected" : "selected";
+    var act = o.disabled ? "inactive" : "active";
+    OnSetPadColor (id, ButtonColors[act][sel]);
+        
+}
 
+function SetButtonStatus (a) {
+    for (i = 0; i < a.length; i++)
+        ButtonState(a[i], a[i].id, a.CurObj != a[i] );
+}
+
+
+/////////////////////////////////////////////////////
+// Game Utils
+/////////////////////////////////////////////////////
 
 function RotateRight (b, a) {
     var i, j, r = [];
@@ -145,11 +297,9 @@ function RotateRight (b, a) {
     RotateRight(b, r);
 }
 
-RotateRight (CornersA, BoxCornerA);
-RotateRight (SidesA, BoxSideA);
 
 
-function div(id, cl, abs, t, l, h, w, color) {
+function div(id, cl, abs, t, l, h, w, color, complete) {
     return "<div" + 
      (cl ? " class=" + Q(cl) : "") + 
      (id ? " id=" + Q(id) : "") + 
@@ -159,51 +309,76 @@ function div(id, cl, abs, t, l, h, w, color) {
      "px;width:" + w + 
      "px;position:" + (abs ? "absolute" : "relative") +
      (color ? ";background-color:" + color : "") +
-     ";'>";
+     ";'>" + (complete ? "</div>" : "") ;
 }
 
+function span(id, cl, abs, t, l, h, w, color, complete) {
+    return oTable000() + "<tr><td " + 
+     (cl ? " class=" + Q(cl) : "") + 
+     (id ? " id=" + Q(id) : "") + 
+     " style='top:"+ t + 
+     "px;left:" + l + 
+     "px;height:" + h + 
+     "px;width:" + w + 
+     "px;position:" + (abs ? "absolute" : "relative") +
+     (color ? ";background-color:" + color : "") +
+     ";'>" + (complete ? "</td></tr></table>" : "") ;
+}
+
+var CornerA = [ 
+    [[1,4,3,3],[2,3,3,2],[3,2,2,3],[4,1,3,3]],  // upper left 
+    [[1,0,3,3],[2,2,3,2],[4,3,3,3],[3,2,2,3]],  // upper right
+    [[0,3,3,3],[2,2,2,3],[3,0,3,3],[2,2,3,2]],  // lower right
+    [[0,1,3,3],[2,3,3,2],[3,4,3,3],[2,2,2,3]]   // lower left
+]; // t,l,h,w
 
 
-function GenRoundedBoxHTML (h, w, id) {
-    function GenTds(t, h, w) {
-        var i, j, c; 
-        top1 = top;
-        for (i = 0; i < t.length; i++) {
-            left1 = left;
-            for (j = 0; j < t[i].length; j++) {
-                if ((c = t[i][j]) == "i")
-                    s += div(0, "i", 1, top1, left1, h, w) + "</div>";
-                else if ("0" <= c && c <= "9")
-                    s += div(0, 0, 1, top1, left1, h, w, BoxColorA[c]) + "</div>";
-                left1 += w;
-            }
-            top1 += h;
+function GenRoundedBoxHTML (h, w, id, cl) {
+    function DrawCorner (t, l, a) {
+        var b, i;
+        for (i = 0; i < a.length; i++) {
+            b = a [i];
+            s += div(0,0,1,t+b[0],l+b[1],b[2],b[3],"black",1);
         }
-        left = left1;
     }
     
-    var left, top, left1, top1, s = ""; 
-    top = left = 0; 
-       GenTds (CornersA[0], 1, 1); GenTds(SidesA[1], 1, w); GenTds (CornersA[1], 1, 1); 
-    top = top1; left = 0; 
-       GenTds (SidesA[0], h, 1); s += div(id+"IN", "i", 1, top-2, left1, h+2, w) + "</div>"; 
-          left += w; GenTds(SidesA[2], h, 1); 
-    top = top1; left = 0; 
-       GenTds (CornersA[3], 1, 1); GenTds(SidesA[3], 1, w); top = GenTds(CornersA[2], 1, 1); 
-    return div(id, 0, 0, 0, 0, top1, left1) + s + "</div>";
+    
+    var  s = ""; 
+    if (cl == undefined) cl = "";
+    //             t,    l,    h,  w
+    s += div(0,0,1,6,    0,    h,  3, "black", 1); // Left
+    s += div(0,0,1,6,    w+6+3,h  ,3, "black", 1); // right
+    s += div(0,0,1,0,    6,    3,  w, "black", 1); // top
+    s += div(0,0,1,h+6+3,6,    3,  w, "black", 1); // bottom
+    s += div(id + "IN", cl + "IN", 1, 3, 3, h + 6, w + 6, 0, 1);
+//    s += span(id + "IN", cl + "IN", 1, 3, 3, h + 6, w + 6, 0, 1);
+    DrawCorner(0,0,CornerA[0]);
+    DrawCorner(0,w+5,CornerA[1]);
+    DrawCorner(h+5,w+5,CornerA[2]);
+    DrawCorner(h+5,0,CornerA[3]);
+    return div(id, cl, 0, 0, 0, h + 12, w + 12) + s + "</div>";
 }
 
 ///////////////////////////////////////////////////////////
 // Game Utilities
 ///////////////////////////////////////////////////////////
 
-function OnSetPadColor (id, color) {
-    var i, a = Gid(id).getElementsByTagName("div");
-    for (i = 0; i < a.length; i++)
-        if (a [i].className == "i")
-            a [i].style.backgroundColor = color;
+
+function ColObj (b, color) {
+    return {backgroundColor:b, color:color};
 }
 
+function OnSetPadColor (id, b, color) {
+    if (b instanceof Object) {
+        color = b.color; b = b.backgroundColor;
+    }
+    var o;
+    if((o = Gid(id + "IN")) != null) {
+        o.style.backgroundColor = b;
+        if (color != undefined)
+            o.style.color = color;
+    }    
+}
 
 function DisplayObj(o) {
     var i, p;
@@ -214,13 +389,14 @@ function DisplayObj(o) {
 
 
 function Click(Ma, Mo) {
-    if (Ma.CurClick) {
-        OnSetPadColor (Ma.CurClick, "lightblue");
-        Gid(Ma.CurClick).style.zIndex = 0;
-    }
     var o;
-    OnSetPadColor (Ma.CurClick = Mo.id, "orange");
-    Gid(Ma.CurClick).style.zIndex = 3;
+    if (Ma.CurObj) {
+        Gid(Ma.CurObj.id).style.zIndex = 0;
+        ButtonState(Ma.CurObj, Ma.CurObj.id, true);
+    }
+    
+    ButtonState(Ma.CurObj = Mo, (Ma.CurObj = Mo).id);
+    Gid(Mo.id).style.zIndex = 3;
     if ((o = Gid(Ma.statusID)) != null)
         o.innerHTML = Mo.desc;
     DisplayObj(GameStatus);
@@ -231,16 +407,18 @@ function Click(Ma, Mo) {
 // Game Status
 ///////////////////////////////////////////////////////////
 
-var GameStatusInitial = {
-    Nutrition:100, 
-    Energy:100,
-    Money:25000,
-    Status:"Healthy",
-    GameDate:"March 8, 2014",
-    GameDay:8,
-    GameTime:"14:00",
-    Weather:"<img src='imgs/SunCloud.gif'/>"
-};
+function GameStatusInit () {
+    return {
+        Nutrition:100, 
+        Energy:100,
+        Money:25000,
+        Status:"Healthy",
+        GameDate:"March 8, 2014",
+        GameDay:8,
+        GameTime:"14:00",
+        Weather:"<img src='imgs/SunCloud.gif'/>"
+    };
+}
 
 
 var GameStatus;
@@ -254,12 +432,17 @@ var GameStatus;
 
 
 function onFields () {
+    Gid("FARMFRAMEIN").innerHTML = FarmFieldsHTML ("FFIMG","FFSTAT","FFSEL","FFACT");
+    MenuHTML(FarmFieldA);
+
 }
 
 function onAnimals() {
+    Gid("FARMFRAMEIN").innerHTML = "";
 }
 
 function onGranary () {
+    Gid("FARMFRAMEIN").innerHTML = "";
 }
 
 var FarmItemsA = [
@@ -268,12 +451,172 @@ var FarmItemsA = [
     {desc:"Granary",id:"GRAN",on:onGranary},
 ];
 FarmItemsA.id = 'FarmMenuID'
-FarmItemsA.sep = "</td><td>";
-FarmItemsA.CurClick = "FIELDS";
+FarmItemsA.horiz = 4;
+FarmItemsA.cl = "FARM";
+FarmItemsA.CurObj = FarmItemsA[0];
+FarmItemsA.height = 26;
+FarmItemsA.width = 142;
+
+
+
+
+
+///////////////////////////////////////////////////////////
+// Farm Fields 
+///////////////////////////////////////////////////////////
+
+
+
+function FarmFieldsHTML (ulid, urid, llid, lrid) {
+    var s = oTable000();
+    s += "<tr><td>" + div (ulid, 0, 0, 0, 0, 240, 364) + "</div></td>";
+        s += "<td width='324' align='center'>" + div (urid, 0, 0, 0, 0, 240, 290);
+        s += "</div></td></tr>";
+    s += "<tr><td>" + div (llid, 0, 0, 0, 0, 188, 364) + "</div></td>";
+        s += "<td align='center'>" + div (lrid, 0, 0, 0, 0, 188, 290);
+        s += "</div></td></tr>"; 
+    return s + "</table>";
+}
+
+function FarmActionSetup(hd) {
+    var o = FarmFieldA.CurObj; 
+    var p = PanelObj({
+        id:"FFSTAT",
+        cl:"FFSTAT",
+        obj:FieldDataA[FarmFieldA.CurObj.i]
+    });
+    var s = "Empty Field";
+    if (o.Fallow)
+        s = "Fallow Field";
+    else 
+        s = o.desc + " Field";
+    p.header({desc:s + hd});
+    return p;
+}
+
+function onInspect() {
+    var p = FarmActionSetup(" - Inspect");
+    p.display({desc:"Age", field:"age", init:0, unit:"&nbsp;days"});
+    p.display({desc:"Size", field:"size", init:0, unit:"&nbsp;m<sup>2</sup>"});
+    p.display({desc:"Condition", field:"condition", init:"--"});
+    p.display({desc:"Watered", field:"watered", init:0, unit:"&nbsp;Days ago"});
+    p.display({desc:"Fertilized", field:"fertilized", init:"--"});
+    p.display({desc:"Status", field:"status", init:"--"});
+    p.put();
+}
+
+function TestFieldData() {
+    FieldDataA[0].age = 6;
+    FieldDataA[0].size = 500;
+    FieldDataA[0].condition = "Fair";
+    FieldDataA[0].watered = 2;
+    FieldDataA[0].fertilized = "No";
+    FieldDataA[0].status = "OK";
+    
+    FieldDataA[1].age = 12;
+    FieldDataA[1].size = 300;
+    FieldDataA[1].condition = "Poor";
+    FieldDataA[1].watered = 5;
+    FieldDataA[1].fertilized = "No";
+    FieldDataA[1].status = "OK";
+}
+
+function onCultivate() {
+    var p = FarmActionSetup(" - Cultivate");
+    p.put();
+}
+
+function onH2O() {
+    var p = FarmActionSetup(" - Water");
+    p.put();
+}
+
+function onFertilize() {
+    var p = FarmActionSetup(" - Fertilize");
+    p.put();
+}
+
+function onTreat() {
+    var p = FarmActionSetup(" - Treat");
+    p.put();
+}
+
+function onHarvest() {
+    var p = FarmActionSetup(" - Harvest");
+    p.put();
+}
+
+var FarmActionsA = [
+    {desc:"Inspect",id:"INSP", on:onInspect},
+    {desc:"Cultivate",id:"CULT",on:onCultivate,disabled:true},
+    {desc:"Water",id:"H2O",on:onH2O},
+    {desc:"Fertilize",id:"FERT",on:onFertilize},
+    {desc:"Treat",id:"TREAT",on:onTreat,disabled:true},
+    {desc:"Harvest",id:"HARV",on:onHarvest,disabled:true} 
+];
+FarmActionsA.id = "FFACT";
+FarmActionsA.cl = "FARMACT";
+FarmActionsA.width = 110;
+FarmActionsA.height = 26;
+FarmActionsA.horiz = 2;
+FarmActionsA.CurObj = FarmActionsA[0];
+
+function Maize (o) {
+    o.desc = "Maize";
+}
+
+function Fallow(o) {
+    o.Fallow = true;
+}
+
+
+function OnCrop(CropInd) {
+    MenuHTML(FarmActionsA);
+}
+
+function CropBut (i, CropType) {
+    var j, o = {i:i,
+        desc:"[Empty]",
+        id:"Crop" + i, 
+        on:function(i) { 
+            return function() {OnCrop(i); }; }(i)
+    }; 
+    if (CropType)
+        CropType (o);
+    else
+        o.disabled = true;
+    return o;
+}
+
+function FarmFieldInit () {
+    var i, IniA = [
+        CropBut (0, Maize), CropBut (1, Maize), CropBut (2, Fallow)  
+    ];
+    for (i = IniA.length; i < 9; i++)
+        IniA[IniA.length] = CropBut (i);
+    IniA.id = "FFSEL";
+    IniA.horiz = 3;
+    IniA.cl = "CROP";
+    IniA.CurObj = IniA[0];
+    IniA.height = 26;
+    IniA.width = 90;
+    return IniA;
+    
+}
+
+
+var FieldDataA;
+var FarmFieldA;
+
+
+
 
 ///////////////////////////////////////////////////////////
 // Main Menu Events
 ///////////////////////////////////////////////////////////
+
+
+
 
 function onInventory () {
     Gid("FrameID").innerHTML = "<big>Inventory</big>";
@@ -286,10 +629,8 @@ function onHome() {
 function onFarm () {
     var o;
     Gid("FrameID").innerHTML = "<div id='FarmMenuID'></div>" +
-      GenRoundedBoxHTML (460, 724, "FARMFRAME");
-    OnSetPadColor ("FARMFRAME", "orange");
+      GenRoundedBoxHTML (460, 724, "FARMFRAME", "FARMFRAME");
     MenuHTML(FarmItemsA);
-    Gid(FarmItemsA.CurClick + "IN").click();
 }
 
 function onMarket () {
@@ -311,34 +652,49 @@ var MainItemsA = [
     {desc:"Government",id:"GOV", on:onGovernment}
 ];
 MainItemsA.id = "MenuID";  // Page id to attach menu 
-MainItemsA.sep = "<br>";   // Separator between each menu item
 MainItemsA.statusID = "CurrentLocation";
-
-
+MainItemsA.cl = "MainMenu";
+MainItemsA.height = 26;
+MainItemsA.width = 142;
+MainItemsA.CurObj = MainItemsA[0];
 
 // Write Menu HTML to the document.
 function MenuHTML (Ma) {
     var o, i, a = [];
     // Scan through Ma array, creating button HTML.
-    for (i = 0; i < Ma.length; i++)
+    for (i = 0; i < Ma.length; i++) 
     // Write the HTML to the page
-        a [i] = GenRoundedBoxHTML(26,142,Ma[i].id);
-    var b = "<table border='0' cellspacing='0' cellpadding='0'><tr><td>";
-    Gid(Ma.id).innerHTML = b + a.join(Ma.sep) + "</td></tr></table>";
+        a [i] = GenRoundedBoxHTML(Ma.height,Ma.width, Ma[i].id, Ma.cl) + 
+           (Ma.horiz == undefined ? "<br>" : i % Ma.horiz == Ma.horiz - 1 ? 
+               "</td></tr><tr><td>" : "</td><td>");   
+    
+    var b = oTable000() + "<tr><td>";
+    Gid(Ma.id).innerHTML = b + a.join("") + "</td></tr></table>";
     // And apply onclick handlers
     for (i = 0; i < Ma.length; i++) {
         (o = Gid(Ma[i].id + "IN")).onclick = 
           function(Ma, Mo) {return function () {Click(Ma, Mo); Mo.on(Mo); }}(Ma, Ma[i]);
         Gid(Ma[i].id + "IN").innerHTML = Ma[i].desc; 
-        OnSetPadColor(Ma[i].id, "lightblue");
+        ButtonState (Ma[i], Ma[i].id, Ma.CurObj != Ma[i]);
+//        OnSetPadColor(Ma[i].id, "lightblue");
     }
+    Gid(Ma.CurObj.id + "IN").click();
+}
+
+function ClassTest () {
+    var a = Gid("STYLE");
+    alert (a.innerHTML);
 }
 
 function OnLoad() {
+    CropA = [];
     MenuHTML(MainItemsA);
-    Gid("INVIN").click();
-    GameStatus = GameStatusInitial;
+    GameStatus = GameStatusInit();
+    FarmFieldA = FarmFieldInit();
+    FieldDataA = InitArrayOfObjs(FarmFieldA.length);
+
     DisplayObj(GameStatus);
+    TestFieldData();
 }
 
 
@@ -351,7 +707,7 @@ function OnLoad() {
    <td width='2px' bgcolor='black'></td>
    <!-- Game Status Starts -->
    <td width='520px' align='center'>
-        <div style='border:2px solid red;width:500px;height:130px;padding:6px;margin-top:6px;'>
+        <div style='width:500px;height:130px;padding:6px;margin-top:6px;'>
        <table border='0' cellpadding='0' cellspacing='3' width='100%' height='100%'  class='StatusLabels' style=''>
        <tr><td>Nutrition</td><td>Energy</td>
           <td><nobr>Money:&nbsp;<span id='Money'></span><span class='Money'>&nbsp;Kwacha</span></nobr></td></tr>
@@ -361,7 +717,7 @@ function OnLoad() {
        </div>       
   </td> 
   <td width='200' align='center'>
-        <div style='border:2px solid red;width:180px;height:130px;padding:6px;margin-top:6px;'>
+        <div style='width:180px;height:130px;padding:6px;margin-top:6px;'>
        <table border='0' cellpadding='0' cellspacing='3' width='100%' height='100%'  class='StatusLabels' style=''>
        <tr><td align='center' id='GameDate'></td></tr>
        <tr><td align='center'>Day&nbsp;<span id='GameDay'></span>&nbsp;&nbsp;<span id='GameTime'></span></td></tr>
